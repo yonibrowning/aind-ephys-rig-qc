@@ -273,6 +273,7 @@ def align_timestamps(  # noqa
     local_sync_line=1,
     main_stream_index=0,
     pdf=None,
+    events_sample_rate = 30000.0
 ):
     """
     Aligns timestamps across multiple Open Ephys data streams
@@ -304,6 +305,11 @@ def align_timestamps(  # noqa
         )[1]
 
         for recording in recordnode.recordings:
+            processed_streams = []
+            continuous_streams = [x.metadata['stream_name'] for x in recording.continuous]
+            event_streams = np.unique(recording.events.stream_name)
+            all_streams = np.unique(np.concatenate([event_streams,continuous_streams]))
+
             current_experiment_index = recording.experiment_index
             current_recording_index = recording.recording_index
 
@@ -465,12 +471,15 @@ def align_timestamps(  # noqa
                 # archive the original main stream events to recover
                 # after removing first or last event
                 main_stream_events_archive = main_stream_events.copy()
+                # Track that we have processed this stream
+                processed_streams.append(main_stream_name)
+
 
             for stream_idx, stream in enumerate(recording.continuous):
                 if stream_idx != main_stream_index:
                     main_stream_events = main_stream_events_archive.copy()
                     stream_name = stream.metadata["stream_name"]
-                    print("Processing stream: ", stream_name)
+                    print("Processing continuous & event stream: ", stream_name)
                     source_node_id = stream.metadata["source_node_id"]
                     sample_rate = stream.metadata["sample_rate"]
                     if "PXIe" in stream_name and flip_NIDAQ:
@@ -729,6 +738,215 @@ def align_timestamps(  # noqa
                             timestamp_filename="timestamps.npy",
                             archive_filename=original_timestamp_filename,
                         )
+                        del ts_events
+                        del ts_stream
+                        processed_streams.append(stream_name)
+
+            # Get all the event streams
+            for stream_name in all_streams:
+                if stream_name in processed_streams:
+                    continue
+                else:
+                    main_stream_events = main_stream_events_archive.copy()
+                    print("Processing event only for stream: ", stream_name)
+
+                    if "PXIe" in stream_name and flip_NIDAQ:
+                        print("Flipping NIDAQ stream...")
+                        # flip the NIDAQ stream if sync line is inverted
+                        # between NIDAQ and main stream
+                        events_for_stream = events[
+                            (events.stream_name == stream_name)
+                            & (events.line == local_sync_line)
+                            & (events.state == 0)
+                        ]
+                    else:
+                        events_for_stream = events[
+                            (events.stream_name == stream_name)
+                            & (events.line == local_sync_line)
+                            & (events.state == 1)
+                        ]
+
+                    # Detect sampling rate and verify it makes sense
+                    sample_rate = np.round(np.median(1/(np.diff(events_for_stream.timestamp)/np.diff(events_for_stream.sample_number))))
+                    assert(sample_rate == events_sample_rate,"Sampling rate mismatch")
+
+                    # sort by sample number in case timestamps are not in order
+                    events_for_stream = events_for_stream.sort_values(
+                        by="sample_number"
+                    )
+                    
+                    # Verify that the number of samples between events doesn't
+                    # differ by more than 1
+                    sample_intervals = np.diff(events_for_stream.sample_number)
+                    unq_sample_intervals = np.unique(sample_intervals)
+                    median_sample_interval = np.median(unq_sample_intervals)
+                    assert(np.all(np.abs(unq_sample_intervals-median_sample_interval) < 1),
+                           "Sync line missmatch in events file!")
+
+                    
+
+                    print(
+                        f"Before removal: {len(events_for_stream)} "
+                        + f"local times, {len(main_stream_times)} "
+                        + "main times"
+                    )
+
+                    if len(main_stream_events) != len(events_for_stream):
+                        print(
+                            "Number of events in main and current stream"
+                            + " are not equal"
+                        )
+                        first_main_event_ts = (
+                            main_stream_events.sample_number.values[0]
+                        ) / main_stream_sample_rate
+                        print(first_main_event_ts)
+                        first_curr_event_ts = (
+                            events_for_stream.sample_number.values[0]
+                        ) / sample_rate
+                        print(first_curr_event_ts)
+                        offset = np.abs(
+                            first_main_event_ts - first_curr_event_ts
+                        )
+                        print(offset)
+                        print(
+                            "First event in main and current stream"
+                            + " are not aligned. Off by "
+                            + f"{offset:.2f} s"
+                        )
+
+                        if offset > 0.1:
+                            # bigger than 0.1s so that
+                            # it should not be the same event
+
+                            # remove first event from the stream
+                            # with the most events
+                            if len(main_stream_events) > len(
+                                events_for_stream
+                            ):
+                                print(
+                                    "Removing first event in main stream"
+                                )
+                                main_stream_events = main_stream_events[1:]
+                                main_stream_times = main_stream_times[1:]
+                            else:
+                                print(
+                                    "Removing first event in"
+                                    + " current stream"
+                                )
+                                events_for_stream = events_for_stream[1:]
+                        else:
+
+                            # remove last event from the stream
+                            # with the most events
+                            if len(main_stream_events) > len(
+                                events_for_stream
+                            ):
+                                print("Removing last event in main stream")
+                                main_stream_events = main_stream_events[
+                                    :-1
+                                ]
+                                main_stream_times = main_stream_times[:-1]
+                            else:
+                                print(
+                                    "Removing last event in current stream"
+                                )
+                                events_for_stream = events_for_stream[:-1]
+                    else:
+                        print(
+                            "Number of events in main and current stream"
+                            + " are equal"
+                        )
+
+                    print(
+                        f"After removal: {len(events_for_stream)} "
+                        + f"local times, {len(main_stream_times)} "
+                        + "main times"
+                    )
+
+                    if pdf is not None:
+                        """Plot original timestamps"""
+                        axes[0, 0].plot(
+                            stream.timestamps, label=stream_name
+                        )
+                        axes[1, 0].plot(
+                            (
+                                np.diff(events_for_stream.timestamp)
+                                - np.diff(main_stream_events.timestamp)
+                            )
+                            * 1000,
+                            label=(stream_name),
+                            linewidth=1,
+                        )
+                        axes[1, 0].set_ylim([-1.5, 1.5])
+                        axes[2, 0].bar(
+                            sample_intervals_cat, sample_intervals_counts
+                        )
+
+                    assert len(main_stream_events) == len(
+                        events_for_stream
+                    )
+
+                    local_stream_times = (
+                        events_for_stream.sample_number.values
+                        / sample_rate
+                    )
+
+                    ts = align_timestamps_to_anchor_points(
+                        local_stream_times,
+                        local_stream_times,
+                        main_stream_times,
+                    )
+
+                    if pdf is not None:
+                        axes[0, 0].set_title("Original alignment")
+                        axes[0, 0].set_xlabel("Sample number")
+                        axes[0, 0].set_ylabel("Time (ms)")
+                        axes[0, 0].legend(loc="upper left")
+                        axes[1, 0].set_xlabel("Sync event number")
+                        axes[1, 0].set_ylabel("Time interval (ms)")
+                        axes[2, 0].set_xlabel("Sample interval")
+                        axes[2, 0].set_ylabel("Percentage")
+
+                        axes[0, 1].set_title("After local alignment")
+                        axes[0, 1].set_xlabel("Sample number")
+                        axes[0, 1].set_ylabel("Time (ms)")
+                        axes[0, 1].legend(loc="upper left")
+                        axes[1, 1].set_xlabel("Sync event number")
+                        axes[1, 1].set_ylabel("Time diff (ms)")
+
+                        pdf.set_y(40)
+                        pdf.embed_figure(fig)
+
+                    # save timestamps for the events in the stream
+                    # mapping original events sample number
+                    # in case timestamps are not in order
+                    stream_events_folder = os.path.join(
+                        recording.directory,
+                        "events",
+                        [x for x in os.listdir(os.path.join(recording.directory,'events')) if stream_name in x][0],
+                        "TTL",
+                    )
+
+                    sample_filename_events = os.path.join(
+                        stream_events_folder, "sample_numbers.npy"
+                    )
+                    sample_number_raw = np.load(sample_filename_events)
+
+                    ts_events = align_timestamps_to_anchor_points(
+                        sample_number_raw,
+                        events_for_stream.sample_number.values,
+                        main_stream_times,
+                    )
+                    print("Updating stream event timestamps...")
+                    archive_and_replace_original_timestamps(
+                        stream_events_folder,
+                        new_timestamps=ts_events,
+                        timestamp_filename="timestamps.npy",
+                        archive_filename=original_timestamp_filename,
+                    )
+                    del ts_events
+                    processed_streams.append(stream_name)
+
 
     fig.savefig(os.path.join(directory, "temporal_alignment.png"))
 
@@ -822,7 +1040,6 @@ def align_timestamps_harp(
             # axes[2,0].bar(sample_intervals_cat, sample_intervals_counts)
 
             for stream_ind in range(len(recording.continuous)):
-
                 stream_name = recording.continuous[stream_ind].metadata[
                     "stream_name"
                 ]
@@ -851,6 +1068,9 @@ def align_timestamps_harp(
                     timestamp_filename="timestamps.npy",
                     archive_filename="local_timestamps.npy",
                 )
+
+            for _,stream_name in enumerate(np.unique(recording.events.stream_name)):
+                stream_folder_name = [x for x in os.listdir(os.path.join(recording.directory,'events')) if stream_name in x][0]
 
                 # events timestamps
                 stream_events_times_folder = os.path.join(
