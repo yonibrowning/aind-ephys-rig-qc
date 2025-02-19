@@ -148,10 +148,10 @@ def search_harp_line(recording, directory, pdf=None):
         print("Multiple NIDAQ streams found. Using: ", tmp.stream_name[potential_rows[0]])
         nidaq_stream_name = tmp.stream_name[potential_rows[0]]
         nidaq_stream_source_node_id = tmp.processor_id[potential_rows[0]]
-    elif len(potential_names) == 0:
+    elif len(potential_rows) == 0:
         raise ValueError("No NIDAQ stream found!")
     else:
-        print("NIDAQ stream found: ", potential_names[0])
+        print("NIDAQ stream found: ", tmp.stream_name[potential_rows[0]])
         nidaq_stream_name = tmp.stream_name[potential_rows[0]]
         nidaq_stream_source_node_id = tmp.processor_id[potential_rows[0]]
 
