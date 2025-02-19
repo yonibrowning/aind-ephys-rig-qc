@@ -790,6 +790,7 @@ def align_timestamps(  # noqa
                         )
                     )
                     condition = np.abs(sample_rate - events_sample_rate) < 1
+                    print(f'Computed Sampling Rate: {sample_rate}')
                     assert condition, "Sampling rate mismatch"
 
                     # sort by sample number in case timestamps are not in order
