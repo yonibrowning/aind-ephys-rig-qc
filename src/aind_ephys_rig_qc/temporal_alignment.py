@@ -984,7 +984,7 @@ def align_timestamps_harp(
         Report for adding QC figures (optional)
     """
 
-    session = Session(directory, mmap_timestamps=False)
+    session = Session(directory, mmap_timestamps=True)
     stream_folder_names, _ = se.get_neo_streams("openephysbinary", directory)
     stream_folder_names = [
         stream_folder_name.split("#")[-1]
@@ -1068,7 +1068,7 @@ def align_timestamps_harp(
                 # continuous streams timestamps
                 local_stream_times = recording.continuous[
                     stream_ind
-                ].timestamps
+                ].timestamps.copy()
                 harp_aligned_ts = align_timestamps_to_anchor_points(
                     local_stream_times, start_times, harp_times
                 )
@@ -1110,8 +1110,6 @@ def align_timestamps_harp(
                     timestamp_filename="timestamps.npy",
                     archive_filename="local_timestamps.npy",
                 )
-                del stream_events_times
-                del stream_events_harp_aligned_ts
 
             axes[0, 0].set_title("Harp time vs local time")
             axes[0, 0].set_xlabel("Local time (s)")
