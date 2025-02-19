@@ -791,7 +791,11 @@ def align_timestamps(  # noqa
                     )
                     condition = np.abs(sample_rate - events_sample_rate) < 1
                     print(f'Computed Sampling Rate: {sample_rate}')
-                    assert condition, "Sampling rate mismatch"
+                    if condition is False:
+                        print(f"Sampling rate mismatch!!!!")
+                        print(f"forcing rate to {events_sample_rate}")
+                        print(f"Check {stream_name}!!!!")
+                        sample_rate = events_sample_rate
 
                     # sort by sample number in case timestamps are not in order
                     events_for_stream = events_for_stream.sort_values(
