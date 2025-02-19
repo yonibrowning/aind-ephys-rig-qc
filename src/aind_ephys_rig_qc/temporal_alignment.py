@@ -947,8 +947,8 @@ def align_timestamps(  # noqa
                     )
                     del ts_events
                     processed_streams.append(stream_name)
-
-    return fig
+    
+    # return fig
 
 
 def align_timestamps_harp(
