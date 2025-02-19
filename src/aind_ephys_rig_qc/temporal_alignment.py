@@ -789,9 +789,8 @@ def align_timestamps(  # noqa
                             )
                         )
                     )
-                    assert (
-                        sample_rate == events_sample_rate
-                    ), "Sampling rate mismatch"
+                    condition = np.abs(sample_rate - events_sample_rate) < 1
+                    assert condition, "Sampling rate mismatch"
 
                     # sort by sample number in case timestamps are not in order
                     events_for_stream = events_for_stream.sort_values(
@@ -1022,7 +1021,7 @@ def align_timestamps_harp(
             events = recording.events
             harp_events = events[
                 (events.stream_name == nidaq_stream_name)
-                # & (events.processor_id == source_node_id)
+                & (events.processor_id == source_node_id)
                 & (events.line == harp_line)
             ]
 
