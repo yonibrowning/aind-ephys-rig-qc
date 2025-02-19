@@ -140,15 +140,20 @@ def search_harp_line(recording, directory, pdf=None):
     #     "stream_name"
     # ]
 
-    potential_names = [x for x in np.unique(recording.events.stream_name) if 'PXIe' in x]
-    if len(potential_names) > 1:
-        print("Multiple NIDAQ streams found. Using: ", potential_names[0])
-        nidaq_stream_name = potential_names[0]
+    tmp = events[['stream_name','processor_id']].copy()
+    tmp = tmp.drop_duplicates()
+    potential_rows = [ii for ii,x in tmp.iterrows() if 'PXIe' in x.stream_name]
+
+    if len(potential_rows) > 1:
+        print("Multiple NIDAQ streams found. Using: ", tmp.stream_name[potential_rows[0]])
+        nidaq_stream_name = tmp.stream_name[potential_rows[0]]
+        nidaq_stream_source_node_id = tmp.processor_id[potential_rows[0]]
     elif len(potential_names) == 0:
         raise ValueError("No NIDAQ stream found!")
     else:
         print("NIDAQ stream found: ", potential_names[0])
-        nidaq_stream_name = potential_names[0]
+        nidaq_stream_name = tmp.stream_name[potential_rows[0]]
+        nidaq_stream_source_node_id = tmp.processor_id[potential_rows[0]]
 
 
     # nidaq_stream_source_node_id = recording.continuous[
@@ -157,7 +162,7 @@ def search_harp_line(recording, directory, pdf=None):
     # list potential lines to scan on NIDAQ stream
     lines_to_scan = events[
         (events.stream_name == nidaq_stream_name)
-        #& (events.processor_id == nidaq_stream_source_node_id)
+        & (events.processor_id == nidaq_stream_source_node_id)
         & (events.state == 1)
     ].line.unique()
 
@@ -238,12 +243,6 @@ def search_harp_line(recording, directory, pdf=None):
     harp_line = candidate_lines
 
     figure.savefig(os.path.join(directory, "harp_line_search.png"))
-
-    nidaq_stream_source_node_id  = np.unique(events[(events.stream_name == nidaq_stream_name) & (events.line==harp_line)].processor_id)
-    if len(nidaq_stream_source_node_id) ==1:
-        nidaq_stream_source_node_id = nidaq_stream_source_node_id[0]
-    else:
-        Warning.print("Multiple source node ids found. This may cause problems elsewhere.")
 
     return harp_line, nidaq_stream_name, nidaq_stream_source_node_id
 
