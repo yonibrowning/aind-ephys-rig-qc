@@ -1085,6 +1085,8 @@ def align_timestamps_harp(
                     timestamp_filename="timestamps.npy",
                     archive_filename="local_timestamps.npy",
                 )
+                del local_stream_times
+                del harp_aligned_ts
 
             for _,stream_name in enumerate(np.unique(recording.events.stream_name)):
                 stream_folder_name = [x for x in os.listdir(os.path.join(recording.directory,'events')) if stream_name in x][0]
@@ -1108,6 +1110,8 @@ def align_timestamps_harp(
                     timestamp_filename="timestamps.npy",
                     archive_filename="local_timestamps.npy",
                 )
+                del stream_events_times
+                del stream_events_harp_aligned_ts
 
             axes[0, 0].set_title("Harp time vs local time")
             axes[0, 0].set_xlabel("Local time (s)")
