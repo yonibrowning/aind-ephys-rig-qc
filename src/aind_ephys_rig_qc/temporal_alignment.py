@@ -624,6 +624,7 @@ def align_timestamps(  # noqa
                         )
 
                         if pdf is not None:
+                            
                             """Plot original timestamps"""
                             axes[0, 0].plot(
                                 stream.timestamps, label=stream_name
@@ -946,9 +947,6 @@ def align_timestamps(  # noqa
                     )
                     del ts_events
                     processed_streams.append(stream_name)
-
-
-    fig.savefig(os.path.join(directory, "temporal_alignment.png"))
 
     return fig
 
