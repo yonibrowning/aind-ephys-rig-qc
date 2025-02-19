@@ -132,28 +132,40 @@ def search_harp_line(recording, directory, pdf=None):
 
     events = recording.events
     # find the NIDAQ stream
-    for stream_ind, stream in enumerate(recording.continuous):
-        if "PXIe" in stream.metadata["stream_name"]:
-            nidaq_stream_ind = stream_ind
-            break
-    nidaq_stream_name = recording.continuous[nidaq_stream_ind].metadata[
-        "stream_name"
-    ]
-    nidaq_stream_source_node_id = recording.continuous[
-        nidaq_stream_ind
-    ].metadata["source_node_id"]
+    # for stream_ind, stream in enumerate(recording.continuous):
+    #     if "PXIe" in stream.metadata["stream_name"]:
+    #         nidaq_stream_ind = stream_ind
+    #         break
+    # nidaq_stream_name = recording.continuous[nidaq_stream_ind].metadata[
+    #     "stream_name"
+    # ]
+
+    potential_names = [x for x in np.unique(recording.events.stream_name) if 'PXIe' in x]
+    if len(potential_names) > 1:
+        print("Multiple NIDAQ streams found. Using: ", potential_names[0])
+        nidaq_stream_name = potential_names[0]
+    elif len(potential_names) == 0:
+        raise ValueError("No NIDAQ stream found!")
+    else:
+        print("NIDAQ stream found: ", potential_names[0])
+        nidaq_stream_name = potential_names[0]
+
+
+    # nidaq_stream_source_node_id = recording.continuous[
+    #     nidaq_stream_ind
+    # ].metadata["source_node_id"]
     # list potential lines to scan on NIDAQ stream
     lines_to_scan = events[
         (events.stream_name == nidaq_stream_name)
-        & (events.processor_id == nidaq_stream_source_node_id)
+        #& (events.processor_id == nidaq_stream_source_node_id)
         & (events.state == 1)
     ].line.unique()
 
-    stream_folder_names, _ = se.get_neo_streams("openephysbinary", directory)
-    stream_folder_names = [
-        stream_folder_name.split("#")[-1]
-        for stream_folder_name in stream_folder_names
-    ]
+    # stream_folder_names, _ = se.get_neo_streams("openephysbinary", directory)
+    # stream_folder_names = [
+    #     stream_folder_name.split("#")[-1]
+    #     for stream_folder_name in stream_folder_names
+    # ]
 
     ncols = len(lines_to_scan)
     figure, axs = plt.subplots(
@@ -226,6 +238,13 @@ def search_harp_line(recording, directory, pdf=None):
     harp_line = candidate_lines
 
     figure.savefig(os.path.join(directory, "harp_line_search.png"))
+
+    nidaq_stream_source_node_id  = np.unique(events[(events.stream_name == nidaq_stream_name) & (events.line==harp_line)].processor_id)
+    if len(nidaq_stream_source_node_id) ==1:
+        nidaq_stream_source_node_id = nidaq_stream_source_node_id[0]
+    else:
+        Warning.print("Multiple source node ids found. This may cause problems elsewhere.")
+
     return harp_line, nidaq_stream_name, nidaq_stream_source_node_id
 
 
@@ -947,7 +966,7 @@ def align_timestamps(  # noqa
                     )
                     del ts_events
                     processed_streams.append(stream_name)
-    
+
     # return fig
 
 
@@ -993,6 +1012,7 @@ def align_timestamps_harp(
                 print(f"Multiple Harp lines found. Select from {harp_line}")
                 harp_line = int(input("Please select Harp line: "))
                 print("Harp line selected: ", harp_line)
+                
             elif len(harp_line) == 0:
                 print("No Harp line found. Please check recording.")
                 continue
@@ -1004,7 +1024,7 @@ def align_timestamps_harp(
             events = recording.events
             harp_events = events[
                 (events.stream_name == nidaq_stream_name)
-                & (events.processor_id == source_node_id)
+                #& (events.processor_id == source_node_id)
                 & (events.line == harp_line)
             ]
 
