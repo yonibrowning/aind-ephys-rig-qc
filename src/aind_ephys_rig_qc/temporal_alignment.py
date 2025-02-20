@@ -111,7 +111,7 @@ def clean_up_sample_chunks(sample_number):
         return realign, residual_ranges
 
 
-def search_harp_line(recording, directory, harp_line_key="PXIe", pdf=None):
+def search_harp_line(recording, directory, pdf=None,harp_line_key="PXIe",):
     """
     Search for the Harp clock line in the NIDAQ stream
 
@@ -129,14 +129,15 @@ def search_harp_line(recording, directory, harp_line_key="PXIe", pdf=None):
     harp_line : int
         The line number of the Harp clock in the NIDAQ stream
     """
-
+    print(harp_line_key)
     events = recording.events
 
     # Find events that
     tmp = events[["stream_name", "processor_id"]].copy()
     tmp = tmp.drop_duplicates()
+    print(tmp)
     potential_rows = [
-        ii for ii, x in tmp.iterrows() if harp_line_key in x.stream_name
+        ii for ii, row in tmp.iterrows() if harp_line_key in row.stream_name
     ]
 
     if len(potential_rows) > 1:
@@ -1008,7 +1009,7 @@ def align_timestamps_harp(
 
             # detect harp clock line
             harp_line, nidaq_stream_name, source_node_id = search_harp_line(
-                recording, directory, pdf
+                recording, directory, pdf = pdf
             )
             if len(harp_line) > 1:
                 print(f"Multiple Harp lines found. Select from {harp_line}")
