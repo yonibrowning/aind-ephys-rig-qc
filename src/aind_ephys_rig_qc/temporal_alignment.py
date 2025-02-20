@@ -111,7 +111,7 @@ def clean_up_sample_chunks(sample_number):
         return realign, residual_ranges
 
 
-def search_harp_line(recording, directory, harp_line_key="PXIe", pdf=None):
+def search_harp_line(recording, directory, pdf=None,harp_line_key="PXIe"):
     """
     Search for the Harp clock line in the NIDAQ stream
 
