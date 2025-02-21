@@ -1012,7 +1012,7 @@ def align_timestamps_harp(
             ]
 
             harp_states = harp_events.state.values
-            harp_timestamps_local = harp_events.timestamps.values
+            harp_timestamps_local = harp_events.timestamp.values
             start_times, harp_times = decode_harp_clock(
                 harp_timestamps_local, harp_states
             )
