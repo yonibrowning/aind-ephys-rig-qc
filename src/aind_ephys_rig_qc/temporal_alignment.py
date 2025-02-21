@@ -1017,6 +1017,9 @@ def align_timestamps_harp(
                 harp_timestamps_local, harp_states
             )
             print("Total Harp events: ", len(harp_times))
+            print("First Harp time: ", harp_times[0])
+            print("Last Harp time: ", harp_times[-1])
+
 
             if pdf is not None:
                 pdf.add_page()
@@ -1056,6 +1059,9 @@ def align_timestamps_harp(
                 harp_aligned_ts = align_timestamps_to_anchor_points(
                     local_stream_times, start_times, harp_times
                 )
+                print("Stream: ", stream_name)
+                print("First aligned time: ", harp_aligned_ts[0])
+                print("Last aligned time: ", harp_aligned_ts[-1])
                 # plot harp timestamps vs local timestamps
                 if pdf is not None:
                     axes[1, 0].plot(local_stream_times, label=stream_name)
