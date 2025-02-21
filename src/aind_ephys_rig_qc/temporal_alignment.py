@@ -658,18 +658,7 @@ def align_timestamps(  # noqa
                         assert len(main_stream_events) == len(
                             events_for_stream
                         )
-
-                        local_stream_times = (
-                            events_for_stream.sample_number.values
-                            / sample_rate
-                        )
-
-                        ts = align_timestamps_to_anchor_points(
-                            local_stream_times,
-                            local_stream_times,
-                            main_stream_times,
-                        )
-
+                        
                         ts_stream = align_timestamps_to_anchor_points(
                             sample_numbers,
                             events_for_stream.sample_number.values,
@@ -905,16 +894,6 @@ def align_timestamps(  # noqa
 
                     assert len(main_stream_events) == len(events_for_stream)
 
-                    local_stream_times = (
-                        events_for_stream.sample_number.values / sample_rate
-                    )
-
-                    ts = align_timestamps_to_anchor_points(
-                        local_stream_times,
-                        local_stream_times,
-                        main_stream_times,
-                    )
-
                     if pdf is not None:
                         axes[0, 0].set_title("Original alignment")
                         axes[0, 0].set_xlabel("Sample number")
@@ -975,6 +954,7 @@ def align_timestamps(  # noqa
 def align_timestamps_harp(
     directory,
     pdf=None,
+    events_sample_rate=30000.0,
 ):
     """
     Aligns timestamps across multiple Open Ephys data streams
@@ -1003,7 +983,7 @@ def align_timestamps_harp(
 
             current_experiment_index = recording.experiment_index
             current_recording_index = recording.recording_index
-
+        
             events = recording.events
 
             # detect harp clock line
@@ -1031,7 +1011,7 @@ def align_timestamps_harp(
             ]
 
             harp_states = harp_events.state.values
-            harp_timestamps_local = harp_events.timestamp.values
+            harp_timestamps_local = harp_events.sample_number.values/events_sample_rate
             start_times, harp_times = decode_harp_clock(
                 harp_timestamps_local, harp_states
             )
