@@ -1012,14 +1012,15 @@ def align_timestamps_harp(
             ]
 
             harp_states = harp_events.state.values
-            harp_timestamps_local = harp_events.sample_number.values/events_sample_rate
+            harp_timestamps_local = harp_events.timestamps.values
             start_times, harp_times = decode_harp_clock(
                 harp_timestamps_local, harp_states
             )
             print("Total Harp events: ", len(harp_times))
             print("First Harp time: ", harp_times[0])
             print("Last Harp time: ", harp_times[-1])
-
+            print("First Start time: ", start_times[0])
+            print("Last Start time: ", start_times[-1])
 
             if pdf is not None:
                 pdf.add_page()
